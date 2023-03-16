@@ -1,0 +1,65 @@
+def predict(model, result, data, group):
+    '''
+    model: This is the Unfitted Model - but fully specified / Defined
+    result: This is the fitted model
+    data: This is what the model is trained on
+    '''
+    data = data.copy()
+    data = sm.add_constant(data)
+    
+    # Get Fixed Effects Prediction
+    fe_predictions = np.array(results.predict(data)).flatten()
+    
+    # Get Random Effects Prediction
+    if len(results.random_effects[group]) == 1:
+        re_predictions = model.predict(results.random_effects[group], exog=1)
+    elif len(results.random_effects[group]) > 1:
+        if 'Group' in results.random_effects[group].index:
+            re_predictions = model.predict(results.random_effects[group], 
+                                           exog=add_constant(data)[results.random_effects[group].index.tolist()])
+            
+        else:
+            re_predictions = model.predict(results.random_effects[group], 
+                                           exog=data[results.random_effects[group].index.tolist()])
+            
+    re_predictions = np.array(re_predictions)
+    # Get Mixed Effects Prediction
+    me_predictions = re_predictions + fe_predictions
+    
+    return me_predictions
+
+
+def predict_batch(model, result, data, group_column):
+    data  =  data.copy()
+    
+    # Do this to have a proper index variable
+    data = data.reset_index(drop = True)
+    
+    # Initialize
+    predictions = np.zeros(data.shape[0])
+    
+    ### Unique values of group variable
+    uns = data[group_column].unique()
+    
+    # Predict
+    for grp in uns:
+        mask = np.array(data[group_column] == grp).flatten()
+        masked_data = data.loc[data[group_column] == grp]
+        predictions[mask] = predict(model, results, data=masked_data, group=grp)
+    
+    # Iterate and calculate predictions
+    '''for index, row in data.iterrows():
+        reshaped_row = pd.concat([pd.DataFrame(row).T]*2, axis = 0).iloc[0:1]
+        predictions[index] = predict(model, results, data=reshaped_row, group=reshaped_row[group_column])
+        '''
+    return predictions
+
+
+def add_constant(df, name='Group'):
+    df = df.copy()
+    if type(df) == pd.Series:
+        df = pd.DataFrame(df)
+    df[name]=1
+    
+    df = df[[name]+pd.DataFrame(df).columns[:-1].tolist()]
+    return df
