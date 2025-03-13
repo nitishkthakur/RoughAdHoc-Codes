@@ -1,0 +1,28 @@
+import json
+
+def extract_jsons(json_string):
+    # Convert the string into a proper Python object
+    try:
+        # This will handle cases with JSON arrays or nested JSON objects
+        json_data = json.loads(json_string)
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+        return []
+
+    result = []
+
+    def recursive_extract(data):
+        if isinstance(data, list):
+            for item in data:
+                recursive_extract(item)
+        elif isinstance(data, dict):
+            if 'a' in data or 'b' in data:
+                result.append(data)
+            # Iterate through the values in the dictionary
+            for value in data.values():
+                recursive_extract(value)
+
+    # Start the extraction process
+    recursive_extract(json_data)
+
+    return result
